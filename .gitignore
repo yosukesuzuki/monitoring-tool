@@ -1,0 +1,6 @@
+lib
+credential.json
+config.json
+*.pyc
+.idea/*
+*.DS_Store

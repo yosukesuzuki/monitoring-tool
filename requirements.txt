@@ -1,0 +1,6 @@
+Flask==0.12.1
+pyquery==1.2.4
+gspread==0.6.2
+oauth2client==4.1.1
+requests==2.18.1
+requests-toolbelt==0.8.0
