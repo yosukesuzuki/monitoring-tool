@@ -1,6 +1,5 @@
 lib
-credential.json
-config.json
+*.json
 *.pyc
 .idea/*
 *.DS_Store
