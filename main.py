@@ -17,9 +17,11 @@ import json
 import logging
 import os
 
+import validators
 import gspread
 import requests
 from flask import Flask, render_template
+from google.appengine.ext import deferred
 from lxml import etree
 from oauth2client.service_account import ServiceAccountCredentials
 from pyquery import PyQuery as pq
@@ -60,8 +62,29 @@ def index():
             for e in elements:
                 if r[0] in e:
                     working = True
-            results.append({'id': r[0], 'working': working, 'in_use': in_use, 'notification': r[3]})
+            result = {'id': r[0], 'working': working, 'in_use': in_use, 'notifications': r[3], 'location': r[2]}
+            results.append(result)
+            if working is False and in_use is True:
+                deferred.defer(send_notification, result)
     return render_template('index.html', results=results)
+
+
+def send_notification(result):
+    config_file = os.path.join(os.path.dirname(__file__), 'config.json')
+    with open(config_file, 'r') as configFile:
+        config_dict = json.loads(configFile.read())
+    notifications = result['notifications'].split(',')
+    for noti in notifications:
+        if noti.startswith('https://hooks.slack.com'):
+            post_data = json.dumps({
+                'text': '{} is not working now! location is {}'.format(result['id'], result['location']),
+                'channel': config_dict['slack_channel'], 'username': config_dict['slack_user'],
+                'icon_emoji': config_dict['slack_icon']})
+            r = requests.post(noti, data=post_data)
+            if r.status_code != 200:
+                logging.error('failed: {}'.format(r.text))
+        if validators.email(noti):
+            logging.info('send email to: {}'.format(noti))
 
 
 @app.errorhandler(500)
