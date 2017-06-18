@@ -1,9 +1,27 @@
 {% extends "base.html" %}
 {% block content %}
-<ul>
-{% for title in lists %}
-    <li>{{ title }}</li>
-{% endfor %}
-{{ records }}
-</ul>
+    <table class="table">
+        <thead>
+        <tr>
+            <td>id</td>
+            <td>working</td>
+            <td>notification</td>
+        </tr>
+        </thead>
+        <tbody>
+        {% for r in results %}
+            {% if r['in_use'] %}
+            {% if r['working'] %}
+            <tr>
+            {% else %}
+            <tr class="is-selected">
+            {% endif %}
+                <td>{{ r['id'] }}</td>
+                <td>{{ r['working'] }}</td>
+                <td>{{ r['notification'] }}</td>
+            </tr>
+            {% endif %}
+        {% endfor %}
+        </tbody>
+    </table>
 {% endblock %}

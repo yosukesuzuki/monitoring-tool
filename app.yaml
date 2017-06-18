@@ -17,6 +17,7 @@ handlers:
   mime_type: image/x-icon
 - url: /.*
   script: main.app
+  login: admin
   secure: always
 
 skip_files: |

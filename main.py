@@ -40,18 +40,28 @@ def index():
                      auth=HTTPBasicAuth(config_dict['client_id'], config_dict['client_secret']))
     parser = etree.XMLParser(recover=True)
     d = pq(etree.fromstring(r.text, parser))
-    lists = [e.attrib['title'] for e in d("label.screen-name")]
+    elements = [e.attrib['title'] for e in d("label.screen-name")]
     credential_file = os.path.join(os.path.dirname(__file__), 'credential.json')
     with open(credential_file, 'r') as dataFile:
         credential_dict = json.loads(dataFile.read())
     credentials = ServiceAccountCredentials.from_json_keyfile_dict(credential_dict,
                                                                    scopes=['https://spreadsheets.google.com/feeds'])
-    doc_key = config_dict['doc_key']
     gs_client = gspread.authorize(credentials)
-    gfile = gs_client.open_by_key(doc_key)
+    gfile = gs_client.open_by_key(config_dict['doc_key'])
     worksheet = gfile.sheet1
     records = worksheet.get_all_values()
-    return render_template('index.html', lists=lists, records=records)
+    results = []
+    for i, r in enumerate(records):
+        if i > 0:
+            working = False
+            in_use = False
+            if r[3] != '':
+                in_use = True
+            for e in elements:
+                if r[0] in e:
+                    working = True
+            results.append({'id': r[0], 'working': working, 'in_use': in_use, 'notification': r[3]})
+    return render_template('index.html', results=results)
 
 
 @app.errorhandler(500)
