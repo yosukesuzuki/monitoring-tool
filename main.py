@@ -28,6 +28,8 @@ from pyquery import PyQuery as pq
 from requests.auth import HTTPBasicAuth
 from requests_toolbelt.adapters import appengine
 
+from models import States
+
 appengine.monkeypatch()
 
 app = Flask(__name__)
@@ -64,8 +66,13 @@ def index():
                     working = True
             result = {'id': r[0], 'working': working, 'in_use': in_use, 'notifications': r[3], 'location': r[2]}
             results.append(result)
+            state = States.get_by_id(r[0])
             if working is False and in_use is True:
-                deferred.defer(send_notification, result)
+                if state is None or state.working is True:
+                    States(id=r[0], working=False).put()
+                    deferred.defer(send_notification, result)
+            else:
+                States(id=r[0], working=True).put()
     return render_template('index.html', results=results)
 
 
@@ -77,7 +84,7 @@ def send_notification(result):
     for noti in notifications:
         if noti.startswith('https://hooks.slack.com'):
             post_data = json.dumps({
-                'text': '{} is not working now! location is {}'.format(result['id'], result['location']),
+                'text': u'{} is not working now! location is {}'.format(result['id'], result['location']),
                 'channel': config_dict['slack_channel'], 'username': config_dict['slack_user'],
                 'icon_emoji': config_dict['slack_icon']})
             r = requests.post(noti, data=post_data)
