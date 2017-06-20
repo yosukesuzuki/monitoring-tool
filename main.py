@@ -66,12 +66,19 @@ def index():
                     working = True
             result = {'id': r[0], 'working': working, 'in_use': in_use, 'notifications': r[3], 'location': r[2]}
             results.append(result)
+            if in_use is False:
+                logging.info(u'{} is not in use, skipped'.format(r[0]))
+                continue
             state = States.get_by_id(r[0])
-            if working is False and in_use is True:
+            if working is False:
                 if state is None or state.working is True:
+                    logging.info(u'{}: looks bad, notification task will be sent to que'.format(r[0]))
                     States(id=r[0], working=False).put()
                     deferred.defer(send_notification, result)
+                else:
+                    logging.info(u'{}: looks bad, same status as before'.format(r[0]))
             else:
+                logging.info(u'{}: looks good'.format(r[0]))
                 States(id=r[0], working=True).put()
     return render_template('index.html', results=results)
 
@@ -89,9 +96,9 @@ def send_notification(result):
                 'icon_emoji': config_dict['slack_icon']})
             r = requests.post(noti, data=post_data)
             if r.status_code != 200:
-                logging.error('failed: {}'.format(r.text))
+                logging.error(u'failed: {}'.format(r.text))
         if validators.email(noti):
-            logging.info('send email to: {}'.format(noti))
+            logging.info(u'send email to: {}'.format(noti))
 
 
 @app.errorhandler(500)
