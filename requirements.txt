@@ -5,3 +5,4 @@ oauth2client==4.1.1
 requests==2.18.1
 requests-toolbelt==0.8.0
 validators==0.12.0
+sendgrid==4.2.0

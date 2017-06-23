@@ -17,18 +17,18 @@ import json
 import logging
 import os
 
-import validators
 import gspread
 import requests
+import sendgrid
+import validators
 from flask import Flask, render_template
 from google.appengine.ext import deferred
 from lxml import etree
+from models import States
 from oauth2client.service_account import ServiceAccountCredentials
 from pyquery import PyQuery as pq
 from requests.auth import HTTPBasicAuth
 from requests_toolbelt.adapters import appengine
-
-from models import States
 
 appengine.monkeypatch()
 
@@ -88,10 +88,11 @@ def send_notification(result):
     with open(config_file, 'r') as configFile:
         config_dict = json.loads(configFile.read())
     notifications = result['notifications'].split(',')
+    notification_message = u'{} is not working now! location is {}'.format(result['id'], result['location'])
     for noti in notifications:
         if noti.startswith('https://hooks.slack.com'):
             post_data = json.dumps({
-                'text': u'{} is not working now! location is {}'.format(result['id'], result['location']),
+                'text': notification_message,
                 'channel': config_dict['slack_channel'], 'username': config_dict['slack_user'],
                 'icon_emoji': config_dict['slack_icon']})
             r = requests.post(noti, data=post_data)
@@ -99,6 +100,40 @@ def send_notification(result):
                 logging.error(u'failed: {}'.format(r.text))
         if validators.email(noti):
             logging.info(u'send email to: {}'.format(noti))
+            send_notification_by_sendgrid(noti, notification_message)
+
+
+def send_notification_by_sendgrid(mail_to, notification_message):
+    config_file = os.path.join(os.path.dirname(__file__), 'config.json')
+    with open(config_file, 'r') as configFile:
+        config_dict = json.loads(configFile.read())
+    sg = sendgrid.SendGridAPIClient(apikey=config_dict['sendgrid_api_key'])
+    data = {
+        "personalizations": [
+            {
+                "to": [
+                    {
+                        "email": mail_to
+                    }
+                ],
+                "subject": notification_message
+            }
+        ],
+        "from": {
+            "email": config_dict['sendgrid_from_email'],
+            "name": config_dict['sendgrid_from_email_name']
+        },
+        "content": [
+            {
+                "type": "text/plain",
+                "value": notification_message
+            }
+        ],
+        "template_id": config_dict['sendgrid_template_id']
+    }
+    response = sg.client.mail.send.post(request_body=data)
+    if response.status_code != 202:
+        logging.error(response.body)
 
 
 @app.errorhandler(500)
